@@ -659,7 +659,7 @@ function shake(n){G.shake=Math.max(G.shake||0,n);}
 function targetFor(e){const p=G.p;
  if(e.charm>0){let best=null,bd=1e9;for(const o of G.enemies)if(o!==e&&o.charm<=0){const d=dist(e,o);if(d<bd){bd=d;best=o;}}return best;}
  if(p.npc>0||p.f.invis&&Math.sin(T*.01+e.x)>0.3)return null;return p;}
-function hurtPlayer(n){const p=G.p;if(p.inv>0||state!=='play')return;
+function hurtPlayer(n){const p=G.p;if(p.inv>0||state!=='play'||p.god)return;
  if(p.f.shield&&p.shieldUp){p.shieldUp=0;p.inv=60;G.fx.push({t:20,txt:'BLOCKED',x:p.x,y:p.y-30});return;}
  if(p.f.half)n=Math.max(1,Math.floor(n/2));p.hp-=n;if(p.aura){p.dmg-=p.aura*.2;p.aura=0;G.fx.push({t:30,txt:'AURA LOST',x:p.x,y:p.y-40});}p.inv=70;shake(8);
  if(p.hp<=0){p.hp=0;state='dead';T=0;}}
@@ -902,7 +902,7 @@ function drawGame(){const p=G.p,room=G.room;ctx.save();if(G.shake>.5)ctx.transla
   else if(f.txt)txt(f.txt,f.x,f.y-(30-f.t),18,'#fff');
   else if(f.flash){ctx.fillStyle=`rgba(255,255,230,${f.t/30})`;ctx.fillRect(0,0,W,H);}}
  if(G.boss){const b=G.boss;ctx.fillStyle='#000';ctx.fillRect(W/2-200,H-34,400,18);ctx.fillStyle='#b01818';ctx.fillRect(W/2-198,H-32,396*Math.max(0,b.hp)/b.maxHp,14);txt('LANDRY',W/2,H-46,18,'#fff');}
- ctx.restore();drawHUD();if(state==='play')drawPedDesc();
+ if(ADM.hit)drawHitboxes();ctx.restore();drawHUD();if(state==='play')drawPedDesc();
  if(bannerT>0){const a=Math.min(1,bannerT/20,(200-bannerT)/12);ctx.globalAlpha=a;ctx.fillStyle='rgba(235,220,190,.95)';const y=RY+70;
   ctx.beginPath();ctx.moveTo(W/2-300,y-40);ctx.lineTo(W/2+300,y-40);ctx.lineTo(W/2+280,y+44);ctx.lineTo(W/2-280,y+44);ctx.closePath();ctx.fill();ctx.strokeStyle='#3a2410';ctx.lineWidth=3;ctx.stroke();
   ctx.font='34px Impact';const bs=Math.min(34,34*520/Math.max(1,ctx.measureText(bannerA).width));txt(bannerA,W/2,y-12,bs,'#2a1608',  'center',null);txt(bannerB,W/2,y+22,18,'#5a3a20','center',null,'Georgia, serif');ctx.globalAlpha=1;}}
@@ -1138,13 +1138,70 @@ function frame(){ // one fixed 60 Hz tick (logic + draw)
  else if(state==='title'){T++;drawTitle();if(pressed.Enter||pressed[' ']||clickStart){state='select';T=0;}}
  else if(state==='select'){T++;drawSelect();if(pressed.ArrowLeft||pressed.a)selChar=(selChar+2)%3;if(pressed.ArrowRight||pressed.d)selChar=(selChar+1)%3;
   if(T>5&&(pressed.Enter||pressed[' ']||clickStart))newGame();else if(pressed.Escape){state='title';T=0;}}
- else if(state==='play'){update();if(state==='play'&&(pressed.Tab||pressed.Escape||pressed.p||pressed.i||clickItems)){state='pause';pz.page=0;}drawGame();if(pressed.r&&state==='play')newGame();}
+ else if(state==='play'){update();if(state==='play'&&pressed.l){state='admin';ADM.mode='menu';}
+  if(state==='play'&&(pressed.Tab||pressed.Escape||pressed.p||pressed.i||clickItems)){state='pause';pz.page=0;}drawGame();if(pressed.r&&state==='play')newGame();}
  else if(state==='pause'){drawGame();drawPause();pauseInput();}
+ else if(state==='admin'){drawGame();adminInput();if(state==='admin')drawAdmin();}
  else if(state==='dead'){T++;drawDead();if(pressed.r||pressed.Enter&&T>60)newGame();}
  else if(state==='victory'){T++;drawVictory();if(pressed.Enter&&T>30){state='cutscene';cut={i:0,t:0};}if(pressed.r)newGame();}
  else if(state==='cutscene'){T++;drawCutscene();if(pressed.Enter||pressed[' '])nextPanel();if(pressed.Escape){state='credits';credY=H+20;}}
  else if(state==='credits'){T++;drawCredits();if(pressed.Enter||pressed.Escape){state='title';T=0;}if(pressed.r)newGame();}
  clickItems=false;clickStart=false;pressed={};}
+// ---------- secret admin panel (L) ----------
+const FPS={r:0,t:0,at:0,fps:0,tps:0};
+const ADM={mode:'menu',cur:0,hit:0,fps:0,etype:0,tp:0,ch:0,q:-1,search:'',icur:0,iscroll:0,log:'ready.'};
+const ETN=['fly','skibidi','sigma','rizzler','gyatt'],TPN=['boss','item','shop','start'];
+const STATK=[['dmg','Damage',.5],['tears','Tears',.25],['speed','Speed',.1],['range','Range',.5],['luck','Luck',1]];
+function admRows(){const p=G.p;return [
+ ['God mode',p.god?'[ON]':'[OFF]',()=>{p.god=!p.god;return 'god mode '+(p.god?'on':'off');}],
+ ['Give item...','>',()=>{ADM.mode='items';ADM.icur=0;ADM.iscroll=0;return 'opened item db';}],
+ ['Max coins/bombs/keys','99',()=>{p.coins=p.bombs=p.keys=99;return 'wallet maxed';}],
+ ['Full heal','',()=>{p.hp=p.maxHp;return 'healed';}],
+ ['+1 heart container','',()=>{p.maxHp+=2;p.hp+=2;return 'max hp '+p.maxHp/2;}],
+ ['Kill all in room','',()=>{for(const e of G.enemies)hurtEnemy(e,1e9);return 'room wiped';}],
+ ['Spawn enemy','< '+ETN[ADM.etype]+' >',()=>{spawnEnemy(ETN[ADM.etype],clamp(p.x+rnd(-150,150),RX+40,RX+RW-40),clamp(p.y-120,RY+40,RY+RH-40));G.room.cleared=false;return 'spawned '+ETN[ADM.etype];},d=>ADM.etype=(ADM.etype+d+5)%5],
+ ['Teleport','< '+TPN[ADM.tp]+' room >',()=>{const r=G.rooms.find(r=>r.type===TPN[ADM.tp]);if(!r)return 'no such room';p.x=RX+RW/2;p.y=RY+RH-60;enterRoom(r,null);return 'teleported to '+TPN[ADM.tp];},d=>ADM.tp=(ADM.tp+d+4)%4],
+ ['Reveal map','',()=>{p.f.map=1;G.rooms.forEach(r=>r.seen=1);return 'map revealed';}],
+ ['Show hitboxes',ADM.hit?'[ON]':'[OFF]',()=>{ADM.hit^=1;return 'hitboxes '+(ADM.hit?'on':'off');}],
+ ['Show FPS',ADM.fps?'[ON]':'[OFF]',()=>{ADM.fps^=1;return 'fps '+(ADM.fps?'on':'off');}],
+ ...STATK.map(([k,n,st])=>[n,'< '+(+p[k]).toFixed(2)+' >',()=>'use left/right',d=>{p[k]=Math.max(k==='luck'?-5:.1,+(p[k]+d*st).toFixed(2));}]),
+ ['Switch character','< '+CHARS[CHAR_ORDER[ADM.ch]].name+' >',()=>{const id=CHAR_ORDER[ADM.ch];p.char=id;selChar=ADM.ch;return 'now playing '+CHARS[id].name;},d=>ADM.ch=(ADM.ch+d+3)%3],
+ ['Close panel','[L/ESC]',()=>{state='play';return 'bye';}]];}
+function admItems(){const q=ADM.search.toLowerCase();return ITEMS.filter(i=>(ADM.q<0||(i.quality||0)===ADM.q)&&i.name.toLowerCase().includes(q));}
+const AX=110,AY=50,AW=740,AH=580,ROWH=26,IROWS=12;
+function adminInput(){const up=pressed.ArrowUp||(ADM.mode==='menu'&&pressed.w),dn=pressed.ArrowDown||(ADM.mode==='menu'&&pressed.s);
+ const lf=pressed.ArrowLeft||(ADM.mode==='menu'&&pressed.a),rt=pressed.ArrowRight||(ADM.mode==='menu'&&pressed.d),go=pressed.Enter||(ADM.mode==='menu'&&pressed[' ']);
+ if(ADM.mode==='menu'){if(pressed.l||pressed.Escape){state='play';return;}const R=admRows();
+  if(up)ADM.cur=(ADM.cur+R.length-1)%R.length;if(dn)ADM.cur=(ADM.cur+1)%R.length;const r=R[ADM.cur];
+  if((lf||rt)&&r[3])r[3](lf?-1:1);if(go){ADM.log=r[2]()||ADM.log;}}
+ else{if(pressed.Escape){ADM.mode='menu';return;}const L=admItems();
+  for(const k in pressed){if(k.length===1&&/[a-z ']/.test(k)&&ADM.search.length<20){ADM.search+=k;ADM.icur=0;}}
+  if(pressed.Backspace){ADM.search=ADM.search.slice(0,-1);ADM.icur=0;}
+  if(lf||rt){ADM.q=((ADM.q+1+(lf?-1:1)+6)%6)-1;ADM.icur=0;}
+  if(up)ADM.icur=Math.max(0,ADM.icur-1);if(dn)ADM.icur=Math.min(L.length-1,ADM.icur+1);
+  if(ADM.icur<ADM.iscroll)ADM.iscroll=ADM.icur;if(ADM.icur>=ADM.iscroll+IROWS)ADM.iscroll=ADM.icur-IROWS+1;
+  if(go&&L[ADM.icur]){grantItem(L[ADM.icur]);bannerT=0;ADM.log='gave '+L[ADM.icur].name;}}}
+function drawAdmin(){const T2=Math.floor(T/30)%2;ctx.fillStyle='rgba(0,8,2,.93)';ctx.fillRect(AX,AY,AW,AH);ctx.strokeStyle='#2f2';ctx.lineWidth=2;ctx.strokeRect(AX+4,AY+4,AW-8,AH-8);
+ for(let y=AY;y<AY+AH;y+=3){ctx.fillStyle='rgba(0,255,80,.03)';ctx.fillRect(AX,y,AW,1);}
+ const g='#33ff66',dim='#1a8a3a',M='monospace';txt('root@ohio:~# ./admin_panel --sigma'+(T2?'_':''),AX+20,AY+24,16,g,'left',null,M);
+ txt('> '+ADM.log,AX+20,AY+AH-22,14,'#9f9','left',null,M);
+ if(ADM.mode==='menu'){admRows().forEach((r,i)=>{const y=AY+60+i*ROWH,sel=i===ADM.cur;if(sel){ctx.fillStyle='rgba(50,255,100,.18)';ctx.fillRect(AX+14,y-ROWH/2+2,AW-28,ROWH-2);}
+   txt((sel?'> ':'  ')+r[0],AX+24,y,16,sel?'#cfffd8':g,'left',null,M);txt(r[1],AX+AW-30,y,16,sel?'#cfffd8':dim,'right',null,M);});
+  txt('UP/DOWN select  ENTER run  LEFT/RIGHT adjust  L/ESC close  (mouse ok)',AX+AW/2,AY+AH-46,12,dim,'center',null,M);}
+ else{const L=admItems();txt(`search: ${ADM.search}${T2?'█':''}   quality: ${ADM.q<0?'ALL':'Q'+ADM.q}   (${L.length} results)`,AX+24,AY+56,15,g,'left',null,M);
+  L.slice(ADM.iscroll,ADM.iscroll+IROWS).forEach((it,j)=>{const i=j+ADM.iscroll,y=AY+92+j*36,sel=i===ADM.icur;if(sel){ctx.fillStyle='rgba(50,255,100,.18)';ctx.fillRect(AX+14,y-17,AW-28,34);}
+   drawItemIcon(it,AX+40,y,28);txt(it.name,AX+64,y-6,15,sel?'#cfffd8':g,'left',null,M);txt((it.description||'').slice(0,72),AX+64,y+9,11,dim,'left',null,M);
+   txt('Q'+(it.quality||0)+(G.p.items.includes(it.name)?' ✓':''),AX+AW-30,y,15,QCOL[it.quality||0],'right',null,M);});
+  if(L.length>IROWS){const h=(AH-150)*IROWS/L.length;ctx.fillStyle=dim;ctx.fillRect(AX+AW-14,AY+76+(AH-150-h)*ADM.iscroll/Math.max(1,L.length-IROWS),4,h);}
+  txt('type to search  BKSP erase  LEFT/RIGHT quality  UP/DOWN/wheel scroll  ENTER give  ESC back',AX+AW/2,AY+AH-46,12,dim,'center',null,M);}}
+function drawHitboxes(){ctx.lineWidth=1.5;const c=(o,r,col)=>{ctx.strokeStyle=col;ctx.beginPath();ctx.arc(o.x,o.y,r,0,7);ctx.stroke();};const p=G.p;c(p,p.r,'#0f0');
+ for(const e of G.enemies){c(e,e.r,'#f33');if(e.boss)for(const s of bossSegs(e))c(s,16,'#f93');}for(const t of G.tears)c(t,t.r,'#0ff');for(const b of G.eb)c(b,b.r,'#f0f');
+ for(const pd of G.room.peds)c(pd,30,'#ff0');}
+cv.addEventListener('wheel',e=>{if(state==='admin'&&ADM.mode==='items'){e.preventDefault();const L=admItems();ADM.iscroll=clamp(ADM.iscroll+(e.deltaY>0?1:-1),0,Math.max(0,L.length-IROWS));ADM.icur=clamp(ADM.icur,ADM.iscroll,ADM.iscroll+IROWS-1);}},{passive:false});
+cv.addEventListener('click',e=>{if(state!=='admin')return;const [x,y]=cvXY(e);if(x<AX||x>AX+AW)return;
+ if(ADM.mode==='menu'){const i=Math.round((y-AY-60)/ROWH),R=admRows();if(i<0||i>=R.length)return;ADM.cur=i;const r=R[i];
+  if(r[3]&&x>AX+AW-260)r[3](x<AX+AW-140?-1:1);else ADM.log=r[2]()||ADM.log;}
+ else{const j=Math.round((y-AY-92)/36);const L=admItems();const it=L[ADM.iscroll+j];if(j>=0&&j<IROWS&&it){ADM.icur=ADM.iscroll+j;grantItem(it);bannerT=0;ADM.log='gave '+it.name;}}});
 // ---------- fixed timestep: exactly 60 ticks per real second regardless of monitor refresh ----------
 // Draw calls on catch-up ticks go to a no-op context so only the final tick of each render is painted.
 const NULL_CTX=new Proxy({},{get(t,k){if(k in t)return t[k];const v=REAL_CTX[k];if(typeof v!=='function')return v;
@@ -1153,14 +1210,15 @@ const NULL_CTX=new Proxy({},{get(t,k){if(k in t)return t[k];const v=REAL_CTX[k];
 const STEP=1000/60,MAX_STEPS=5;let acc=0,lastT=performance.now();
 function loop(){const now=performance.now();let el=now-lastT;lastT=now;if(el>250)el=STEP; // tab switch / long stall: resume, don't fast-forward
  acc+=Math.min(el,STEP*MAX_STEPS);let n=Math.floor(acc/STEP);acc-=n*STEP;
- for(let i=0;i<n;i++){ctx=i<n-1?NULL_CTX:REAL_CTX;frame();}ctx=REAL_CTX;
+ for(let i=0;i<n;i++){ctx=i<n-1?NULL_CTX:REAL_CTX;frame();}ctx=REAL_CTX;FPS.r++;FPS.t+=n;if(now-FPS.at>=1000){FPS.fps=FPS.r;FPS.tps=FPS.t;FPS.r=FPS.t=0;FPS.at=now;}
+ if(ADM.fps&&n>0){ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(4,H-26,190,22);txt(`FPS ${FPS.fps}  TICKS ${FPS.tps}/s`,10,H-15,14,'#3f6','left',null,'monospace');}
  requestAnimationFrame(loop);}
 ctx.imageSmoothingEnabled=false;
 loadAssets(()=>{buildRoomCaches();state='title';});
 requestAnimationFrame(loop);
 
 // ---------- debug / test hooks ----------
-window.BOA={get state(){return state;},get ticks(){return T;},get selChar(){return selChar;},set selChar(v){selChar=v;},pz,SEEN,itemsBtn:ITEMS_BTN,startBtn:START_BTN,set state(s){state=s;T=0;},get G(){return G;},newGame,
+window.BOA={get state(){return state;},ADM,get ticks(){return T;},get selChar(){return selChar;},set selChar(v){selChar=v;},pz,SEEN,itemsBtn:ITEMS_BTN,startBtn:START_BTN,set state(s){state=s;T=0;},get G(){return G;},newGame,
  gotoRoom(type){const r=G.rooms.find(r=>r.type===type);G.p.x=RX+RW/2;G.p.y=RY+RH-60;enterRoom(r,null);},
  give(name){const it=ITEMS.find(i=>i.name===name);if(it)grantItem(it);},
  killAll(){for(const e of G.enemies)hurtEnemy(e,99999);},
