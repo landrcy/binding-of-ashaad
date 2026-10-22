@@ -493,7 +493,7 @@ canvas{image-rendering:pixelated;max-width:100vw;max-height:100vh;aspect-ratio:9
 ];</script>
 <script>'use strict';
 // ================= THE BINDING OF ASHAAD =================
-const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const cv=document.getElementById('c'),REAL_CTX=cv.getContext('2d');let ctx=REAL_CTX;
 const W=960,H=672,HUD=96,WALL=64,TILE=64,COLS=13,ROWS=7;
 const RX=WALL,RY=HUD+WALL,RW=COLS*TILE,RH=ROWS*TILE; // room interior
 const rnd=(a=1,b)=>b===undefined?Math.random()*a:a+Math.random()*(b-a);
@@ -1133,7 +1133,7 @@ function drawSelect(){ctx.fillStyle='#080404';ctx.fillRect(0,0,W,H);ctx.globalAl
  const b=SEL_BTN;ctx.fillStyle='rgba(160,30,30,.95)';ctx.fillRect(b.x,b.y,b.w,b.h);ctx.strokeStyle='#fd3';ctx.lineWidth=3;ctx.strokeRect(b.x,b.y,b.w,b.h);txt('▶ PLAY AS '+CHARS[curChar()].name.toUpperCase(),W/2,b.y+b.h/2,24,'#fff');
  txt('←/→ or A/D choose · ENTER/SPACE/click confirm · ESC back',W/2,658,13,'#a89878','center',null,'monospace');}
 // ---------- main loop ----------
-function frame(){
+function frame(){ // one fixed 60 Hz tick (logic + draw)
  if(state==='loading'){ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);txt('Loading aura...',W/2,H/2,30);}
  else if(state==='title'){T++;drawTitle();if(pressed.Enter||pressed[' ']||clickStart){state='select';T=0;}}
  else if(state==='select'){T++;drawSelect();if(pressed.ArrowLeft||pressed.a)selChar=(selChar+2)%3;if(pressed.ArrowRight||pressed.d)selChar=(selChar+1)%3;
@@ -1144,13 +1144,23 @@ function frame(){
  else if(state==='victory'){T++;drawVictory();if(pressed.Enter&&T>30){state='cutscene';cut={i:0,t:0};}if(pressed.r)newGame();}
  else if(state==='cutscene'){T++;drawCutscene();if(pressed.Enter||pressed[' '])nextPanel();if(pressed.Escape){state='credits';credY=H+20;}}
  else if(state==='credits'){T++;drawCredits();if(pressed.Enter||pressed.Escape){state='title';T=0;}if(pressed.r)newGame();}
- clickItems=false;clickStart=false;pressed={};requestAnimationFrame(frame);}
+ clickItems=false;clickStart=false;pressed={};}
+// ---------- fixed timestep: exactly 60 ticks per real second regardless of monitor refresh ----------
+// Draw calls on catch-up ticks go to a no-op context so only the final tick of each render is painted.
+const NULL_CTX=new Proxy({},{get(t,k){if(k in t)return t[k];const v=REAL_CTX[k];if(typeof v!=='function')return v;
+  if(k==='measureText')return s=>REAL_CTX.measureText(s);if(k==='createLinearGradient'||k==='createRadialGradient'||k==='createPattern')return()=>({addColorStop(){}});return()=>{};},
+ set(t,k,v){t[k]=v;return true;}});
+const STEP=1000/60,MAX_STEPS=5;let acc=0,lastT=performance.now();
+function loop(){const now=performance.now();let el=now-lastT;lastT=now;if(el>250)el=STEP; // tab switch / long stall: resume, don't fast-forward
+ acc+=Math.min(el,STEP*MAX_STEPS);let n=Math.floor(acc/STEP);acc-=n*STEP;
+ for(let i=0;i<n;i++){ctx=i<n-1?NULL_CTX:REAL_CTX;frame();}ctx=REAL_CTX;
+ requestAnimationFrame(loop);}
 ctx.imageSmoothingEnabled=false;
 loadAssets(()=>{buildRoomCaches();state='title';});
-requestAnimationFrame(frame);
+requestAnimationFrame(loop);
 
 // ---------- debug / test hooks ----------
-window.BOA={get state(){return state;},get selChar(){return selChar;},set selChar(v){selChar=v;},pz,SEEN,itemsBtn:ITEMS_BTN,startBtn:START_BTN,set state(s){state=s;T=0;},get G(){return G;},newGame,
+window.BOA={get state(){return state;},get ticks(){return T;},get selChar(){return selChar;},set selChar(v){selChar=v;},pz,SEEN,itemsBtn:ITEMS_BTN,startBtn:START_BTN,set state(s){state=s;T=0;},get G(){return G;},newGame,
  gotoRoom(type){const r=G.rooms.find(r=>r.type===type);G.p.x=RX+RW/2;G.p.y=RY+RH-60;enterRoom(r,null);},
  give(name){const it=ITEMS.find(i=>i.name===name);if(it)grantItem(it);},
  killAll(){for(const e of G.enemies)hurtEnemy(e,99999);},
