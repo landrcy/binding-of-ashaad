@@ -1766,7 +1766,7 @@ function drawSelect(){SELA+=(selChar-SELA)*.18;const n=CHAR_ORDER.length;ctx.ima
  ctx.fillStyle='rgba(90,60,30,.12)';for(let i=0;i<60;i++){const x=(i*397)%W,y=(i*211)%H;ctx.fillRect(x,y,3+(i%4),2);}
  ctx.strokeStyle='#3a2414';ctx.lineWidth=4;ctx.strokeRect(14,14,W-28,H-28);
  txt0('WHO AM I?',W/2,62,40,'#2a1608','center','#e8d8b0','"Comic Sans MS","Segoe Print",cursive');
- ctx.strokeStyle='rgba(60,36,18,.5)';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(W/2,300,300,70,0,0,7);ctx.stroke();
+ 
  const ids=CHAR_ORDER.slice();LOCKED.forEach(l=>{if(!ids.includes(l))ids.push('?'+l);});const N=ids.length;
  if(window._lastSel!==selChar){window._lastSel=selChar;window._popT=12;}const pop=window._popT>0?1+Math.sin((window._popT--)/12*Math.PI)*.15:1;
  const items=ids.map((id,i)=>{let d=i-SELA;d=((d%N)+N+N/2)%N-N/2;const ad=Math.abs(d),sel=ad<.5;const sx=Math.sign(d)*(ad<1?ad*330:330+(ad-1)*120);return{id,i,d,sel,x:W/2+sx,y:330-(sel?20:0)+Math.min(ad,2)*8,s:sel?1.25*pop:Math.max(.35,.62-ad*.08),dim:sel?0:Math.min(1,ad*1.2)};}).filter(it=>Math.abs(it.d)<3.2).sort((p,q)=>p.s-q.s);
