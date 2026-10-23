@@ -977,7 +977,7 @@ function killEnemy(e){const p=G.p;G.kills++;onKill(e);for(let i=0;i<10;i++)G.fx.
  const chance=.12+p.luck*.03+(p.f.fanum?.15:0);if(Math.random()<chance)dropPickup(e.x,e.y,pick(['heart','coin','coin','coin','bomb','key']));
  if(p.f.wgem&&Math.random()<.5)dropPickup(e.x,e.y,'coin');
  if(p.f.feast&&Math.random()<.03)G.room.peds.push({x:e.x,y:e.y,item:takeItem()});}
-function fireTear(x,y,a,opt={}){const p=G.p;const sp=7*p.shot;
+function fireTear(x,y,a,opt={}){const p=G.p;const sp=7*p.shot;if(p.char==='maggie'&&!opt.fam&&!opt.child){clawSwipe(x,y,a,opt);return;}
  if(p.f.laser&&!opt.fam){fireBeam(x,y,a);return;}
  G.tears.push({x,y,vx:Math.cos(a)*sp+(opt.fam?0:p.vx*.35),vy:Math.sin(a)*sp+(opt.fam?0:p.vy*.35),life:p.range*11*(opt.lifeMul||1),
   dmg:(opt.dmg||p.dmg*p.mult*(p.f.wgem?1+Math.min(p.coins,30)*.02:1)),r:(opt.r||6+p.tsize),hit:new Set(),
@@ -1751,7 +1751,7 @@ function paper9(x,y,w,h){const im=px('ui/menu_paper_9slice.png');if(!im){ctx.fil
 
 // ---- gibs / particles ----
 const GIBS=[];function gibBurst(x,y,col,n=14){for(let i=0;i<n;i++){const a=Math.random()*7,v=1.5+Math.random()*4;GIBS.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-2,z:0,l:40+Math.random()*30,c:Math.random()<.6?col:'#7a0f12',s:2+Math.floor(Math.random()*3)*2});}}
-function drawGibs(){if(typeof drawPuddles==='function')drawPuddles();for(let i=GIBS.length-1;i>=0;i--){const g=GIBS[i];g.x+=g.vx;g.y+=g.vy;g.vy+=.25;g.vx*=.96;if(g.vy>3){g.vy*=-.3;g.vx*=.6;}if(--g.l<=0){GIBS.splice(i,1);continue;}ctx.globalAlpha=Math.min(1,g.l/15);ctx.fillStyle='#120a0c';ctx.fillRect(g.x-1,g.y-1,g.s+2,g.s+2);ctx.fillStyle=g.c;ctx.fillRect(g.x,g.y,g.s,g.s);}ctx.globalAlpha=1;}
+function drawGibs(){if(typeof drawSwipes==='function')drawSwipes();if(typeof drawPuddles==='function')drawPuddles();for(let i=GIBS.length-1;i>=0;i--){const g=GIBS[i];g.x+=g.vx;g.y+=g.vy;g.vy+=.25;g.vx*=.96;if(g.vy>3){g.vy*=-.3;g.vx*=.6;}if(--g.l<=0){GIBS.splice(i,1);continue;}ctx.globalAlpha=Math.min(1,g.l/15);ctx.fillStyle='#120a0c';ctx.fillRect(g.x-1,g.y-1,g.s+2,g.s+2);ctx.fillStyle=g.c;ctx.fillRect(g.x,g.y,g.s,g.s);}ctx.globalAlpha=1;}
 const EBODY={fly:[0,.9],sigma:[3,1.4],rizzler:[1,1.5],gyatt:[4,1.7],charger:[2,1.4],spider:[1,1.3]};
 function pxEnemyBody(e,ty){const B=EBODY[e.type];if(!B||!px('ebody.png')||!px('face_julian'))return false;const [row,sc]=B,fi=Math.floor((T+e.t)/(e.type==='fly'?4:12))%2;
  const hf=e.hitF>0;ctx.save();if(hf)ctx.filter='brightness(3) saturate(0)';const z=e.z||0,y=e.y-z;
@@ -1786,7 +1786,7 @@ function drawSelect(){SELA+=(selChar-SELA)*.18;const n=CHAR_ORDER.length;ctx.ima
  txt0('< >  choose   ENTER  play',W/2,640,18,'#3a2414','center','rgba(0,0,0,0)','"Comic Sans MS",cursive');}
 // ---- new characters + signature passives ----
 Object.assign(CHARS,{
- maggie:{name:'Maggie',spr:'maggie',hp:4,dmg:3,tears:3,speed:1.25,range:6,shot:1.1,luck:1,tsize:0,passive:'Fetch',icon:'🦴',cap:'Tears boomerang back and hit twice. WOOF reveals secret rooms.',desc:'Fetch! Tears fly out and come back like boomerangs. Barks on each floor to sniff out secret rooms.',flavor:'"Good girl."'},
+ maggie:{name:'Maggie',spr:'maggie',hp:4,dmg:3,tears:3,speed:1.25,range:6,shot:1.1,luck:1,tsize:0,passive:'Claw Swipe',icon:'🐾',cap:'Claw Swipe: melee that reflects bullets. WOOF sniffs out secrets.',desc:'Melee claw swipes in the shooting direction: 2.5x damage, knockback, reflects enemy bullets. Items modify the claw.',flavor:'"Good girl."'},
  lost:{name:'Landry the Lost',spr:'lost',hp:1,dmg:3.5,tears:2.73,speed:1.1,range:6.5,shot:1,luck:10,tsize:0,passive:'Brainrot Mantle',icon:'👻',cap:'One hit kills. Flight, spectral tears, a mantle each room, insane luck.',desc:'Ghost. Dies in one hit, flies over everything, spectral tears, Brainrot Mantle blocks the first hit in every room. Luck +10.',flavor:'"Lost, but locked in."'},
  toilet:{name:'Toilet Kid',spr:'toilet',hp:6,dmg:3.2,tears:2.9,speed:.95,range:6,shot:1,luck:0,tsize:1,passive:'Big Flush',icon:'🚽',cap:'Water tears leave slowing puddles. SPACE: Big Flush knockback wave.',desc:'Water tears leave slowing puddles. Starts with Big Flush (Space): a huge knockback wave, recharged by clearing rooms.',flavor:'"Skibidi? I barely know him."'}});
 CHARS.ashaad.icon='✨';CHARS.ashaad.cap='Kills stack Aura (+dmg). Max Aura: golden glow + piercing tears until hit.';
@@ -1806,7 +1806,7 @@ function maggieBark(){const L=[].concat(G.rooms||[],Object.values(G.map||{}),G.g
 const _th=tearHook;tearHook=function(t,opt,x,y,a){_th(t,opt,x,y,a);const p=G.p;if(!t||opt.fam)return;
  if(p.char==='ashaad'&&(p.aura||0)>=10){t.pierce=1;t.ch='julian';}
  if(p.char==='emmanuel'&&++p.tc%7===0){t.r*=1.9;t.dmg=(t.dmg||p.dmg)*1.6;t.explode=1;}
- if(p.char==='maggie'){t.boom=1;}
+ 
  if(p.char==='toilet'){t.water=1;t.poison=0;}};
 const _cl=clearHook;clearHook=function(r){_cl(r);const p=G.p;if(p.char==='emmanuel'&&!p.hitRoom)p.hp=Math.min(p.maxHp,p.hp+1);if(p.char==='toilet'&&p.active)p.charge=Math.min((ACTIVES[p.active.name]||2),(p.charge||0)+1);};
 const _eh=enterHook;enterHook=function(r){_eh(r);const p=G.p;p.hitRoom=0;if(p.char==='lost')p.shieldUp=1;PUD.length=0;if(p.char==='maggie'&&r===G.start)maggieBark();};
@@ -1835,6 +1835,23 @@ function pxChar2(x,y,s,walk,face,alpha,moving,who){const sc=Math.max(2,Math.roun
   const bl=(T%200)<6;R(-6,-23,4,bl?1:4,O);R(2,-23,4,bl?1:4,O);if(!bl){R(-5,-23,1,1,'#fff');R(3,-23,1,1,'#fff');}R(-3,-18,6,1,O);R(-4,-19,1,1,O);R(3,-19,1,1,O);// face
   ctx.restore();return true;}
  return false;}
+// ---- Maggie claw swipe ----
+const SW=[];
+function clawSwipe(x,y,a,opt){const p=G.p;const big=1+Math.max(0,p.tsize||0)*.08+Math.max(0,p.dmg-3)*.03;const R=96*(p.range/6.5)*big,arc=p.f.pierce?1.9:1.3;const dmg=p.dmg*p.mult*2.5;
+ const col=p.f.poison?'#7f6':p.f.charm?'#f8c':p.f.slow?'#ccc':p.f.explode?'#fa4':p.f.homing?'#c8f':'#fff';
+ if(p.f.homing){let best=null,bd=260;for(const e of G.enemies){const d=dist(e,p);if(d<bd){bd=d;best=e;}}if(best){const aa=Math.atan2(best.y-p.y,best.x-p.x);p.vx+=Math.cos(aa)*5;p.vy+=Math.sin(aa)*5;}}
+ const src={dmg,poison:p.f.poison,charm:p.f.charm,slow:p.f.slow,claw:1,hit:new Set()};
+ const inArc=(o,r)=>{const d=Math.hypot(o.x-p.x,o.y-p.y);if(d>R+r)return false;let da=Math.atan2(o.y-p.y,o.x-p.x)-a;da=Math.atan2(Math.sin(da),Math.cos(da));return Math.abs(da)<arc/2+r/Math.max(d,1);};
+ for(const e of G.enemies.slice()){if(e.friend||e.charm>0)continue;if(inArc(e,e.r||14)){try{hurtEnemy(e,dmg,src);}catch(_){e.hp-=dmg;}if(p.f.poison)e.poisonT=Math.max(e.poisonT||0,120);if(p.f.slow)e.slowT=120;if(!e.boss){const k=Math.atan2(e.y-p.y,e.x-p.x);try{moveEnt(e,Math.cos(k)*26,Math.sin(k)*26);}catch(_){}}}}
+ for(let i=G.eb.length-1;i>=0;i--){const b=G.eb[i];if(inArc(b,b.r||6)){G.eb.splice(i,1);const sp=Math.max(6,Math.hypot(b.vx,b.vy)*1.4);G.tears.push({x:b.x,y:b.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:70,dmg:p.dmg*2,r:8,hit:new Set(),t:0,ch:'julian',pierce:0,refl:1});SW.push({spark:1,x:b.x,y:b.y,t:10});}}
+ if(p.f.explode){try{explode(p.x+Math.cos(a)*R*.8,p.y+Math.sin(a)*R*.8,48,p.dmg*1.5,false);}catch(_){}}
+ if(p.f.laser){const L=320;for(const e of G.enemies){const t=((e.x-p.x)*Math.cos(a)+(e.y-p.y)*Math.sin(a));if(t>0&&t<L){const off=Math.abs(-(e.x-p.x)*Math.sin(a)+(e.y-p.y)*Math.cos(a));if(off<(e.r||14)+14)try{hurtEnemy(e,dmg*.6,src);}catch(_){}}}SW.push({beam:1,x:p.x,y:p.y,a,L,t:12,col});}
+ SW.push({x:p.x,y:p.y-6,a,R,arc,t:10,col});G.lastSwipe=T;}
+function drawSwipes(){for(let i=SW.length-1;i>=0;i--){const s=SW[i];if(--s.t<=0){SW.splice(i,1);continue;}const f=s.t/10;ctx.save();ctx.globalAlpha=Math.min(1,f*1.5);
+ if(s.spark){ctx.fillStyle='#fff';for(let k=0;k<4;k++){const aa=k*1.57+T*.3;ctx.fillRect(s.x+Math.cos(aa)*(12-s.t)-2,s.y+Math.sin(aa)*(12-s.t)-2,4,4);}}
+ else if(s.beam){ctx.translate(s.x,s.y);ctx.rotate(s.a);for(let k=-1;k<=1;k++){ctx.fillStyle='#120a0c';ctx.fillRect(0,k*9-3,s.L,6);ctx.fillStyle=k?'#ffc0d8':s.col;ctx.fillRect(0,k*9-2,s.L,4);}}
+ else{const prog=1-f,sweep=s.arc*(0.4+prog*.6);for(let k=-1;k<=1;k++){const r=s.R*(.62+k*.16);ctx.lineCap='square';ctx.strokeStyle='#120a0c';ctx.lineWidth=8;ctx.beginPath();ctx.arc(s.x,s.y,r,s.a-sweep/2+k*.08,s.a+sweep/2+k*.08);ctx.stroke();ctx.strokeStyle=k===0?s.col:'#ffb0cc';ctx.lineWidth=4;ctx.stroke();}}
+ ctx.restore();}}
 // ---------- main loop ----------
 function frame(){ // one fixed 60 Hz tick (logic + draw)
  holdRepeat();
